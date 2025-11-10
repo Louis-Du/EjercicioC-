@@ -1,0 +1,40 @@
+name: Codecov
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    # Instala Chocolatey si no está disponible
+    - name: Ensure Chocolatey is installed
+      run: |
+        if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+          Set-ExecutionPolicy Bypass -Scope Process -Force
+          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+          iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+        }
+
+    - name: Install .NET Framework 4.7.2 Developer Pack
+      run: choco install netfx-4.7.2-devpack -y
+
+    - name: Restore dependencies
+      run: dotnet restore script/WindowsFormsApp1/WindowsFormsApp1.sln
+
+    - name: Build
+      run: dotnet build script/WindowsFormsApp1/WindowsFormsApp1.sln --no-restore
+
+    - name: Test with coverage
+      run: dotnet test script/WindowsFormsApp1/WindowsFormsApp1.sln --no-build --collect:"XPlat Code Coverage"
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: '**/coverage.cobertura.xml'
